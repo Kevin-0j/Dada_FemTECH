@@ -113,6 +113,15 @@ describe("public stats", () => {
     expect(json.referrals.medianHoursToContact).toBe(2);
   });
 
+  it("labels every page as demo data in demo mode", async () => {
+    const live = testApp();
+    expect(await (await live.app.request("/stats")).text()).not.toContain("Demo data.");
+    const { app } = testApp({ DEMO_MODE: "true" });
+    expect(await (await app.request("/stats")).text()).toContain("Demo data.");
+    const staff = await app.request("/staff", { headers: { authorization: basicAuthHeader() } });
+    expect(await staff.text()).toContain("Demo data.");
+  });
+
   it("serves a health check and redirects the home page", async () => {
     const { app } = testApp();
     expect(await (await app.request("/health")).json()).toEqual({ status: "ok" });
