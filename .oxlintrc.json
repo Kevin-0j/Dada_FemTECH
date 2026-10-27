@@ -1,0 +1,11 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "categories": { "correctness": "error", "suspicious": "warn" },
+  "rules": {
+    "no-console": ["warn", { "allow": ["info", "warn", "error"] }],
+    "typescript/no-explicit-any": "error",
+    "typescript/no-non-null-assertion": "error",
+    "eqeqeq": "error"
+  },
+  "ignorePatterns": ["dist", "coverage", "node_modules"]
+}
