@@ -104,14 +104,12 @@ Node.
 git clone https://github.com/Kevin-0j/Dada_FemTECH.git
 cd Dada_FemTECH
 npm install
-cp .env.example .env
+npm run setup
 ```
 
-Open `.env` and fill in the keys. You can generate each one with:
-
-```bash
-node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-```
+`npm run setup` creates a `.env` file with fresh random keys and prints the login for the staff
+page. To fill the pages with fictional records for a demo, run `npm run setup -- --demo` instead,
+then `npm run seed:demo`.
 
 Start the server:
 
@@ -131,8 +129,7 @@ Then open:
 - `http://localhost:3000/staff` for the referral queue (use `STAFF_USER` and `STAFF_PASSWORD`)
 - `http://localhost:3000/stats` for the live numbers
 
-To fill the pages with fictional records for a demo, set `DEMO_MODE=true` in `.env`, run
-`npm run seed:demo` and restart. Demo mode is refused when `NODE_ENV=production`.
+Every setting is explained in `.env.example`. Demo mode is refused when `NODE_ENV=production`.
 
 ## Connect a real USSD code and WhatsApp number
 
@@ -196,6 +193,7 @@ The [architecture guide](docs/architecture.md) explains the design and the reaso
 
 | Command            | What it does                                                               |
 | ------------------ | -------------------------------------------------------------------------- |
+| `npm run setup`    | Create `.env` with fresh keys (once)                                       |
 | `npm run dev`      | Start the server and restart on changes                                    |
 | `npm test`         | Run the tests                                                              |
 | `npm run check`    | Type-check, lint, check formatting and run tests with coverage, as CI does |

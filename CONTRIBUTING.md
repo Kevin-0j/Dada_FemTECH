@@ -20,7 +20,7 @@ You need Node.js 22.18 or newer.
 git clone https://github.com/Kevin-0j/Dada_FemTECH.git
 cd Dada_FemTECH
 npm install
-cp .env.example .env   # then fill in the values
+npm run setup          # creates .env with fresh keys
 npm run dev
 ```
 
