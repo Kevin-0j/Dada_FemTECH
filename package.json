@@ -9,6 +9,7 @@
     "node": ">=22.18.0"
   },
   "scripts": {
+    "setup": "node scripts/setup-env.ts",
     "start": "node --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/main.ts",
     "dev": "node --watch --env-file-if-exists=.env --disable-warning=ExperimentalWarning src/main.ts",
     "simulate": "node --env-file-if-exists=.env scripts/simulate-ussd.ts",

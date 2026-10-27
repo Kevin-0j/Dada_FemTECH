@@ -4,21 +4,21 @@ How to show Dada working in a short video, with no real user data.
 
 ## Set up (about 15 minutes)
 
-1. Start the server locally with a fresh database:
+1. Create a demo `.env`, add the fictional records and start the server:
 
    ```bash
-   cp .env.example .env    # fill in keys and passwords
+   npm run setup -- --demo
+   npm run seed:demo
    npm run dev
    ```
+
+   Every page then shows a "Demo data" banner. Keep it visible in the video: UNICEF must never
+   think fictional numbers are pilot results.
 
 2. Expose it over HTTPS so Africa's Talking and Twilio can reach it, for example with
    `cloudflared tunnel --url http://localhost:3000`. Put the tunnel address in `PUBLIC_BASE_URL`.
 3. Point the Africa's Talking sandbox callback and the Twilio WhatsApp sandbox at the tunnel (see
    [deployment.md](deployment.md)).
-
-4. So the dashboard is not empty, set `DEMO_MODE=true` in `.env`, run `npm run seed:demo` and
-   restart. Every page then shows a "Demo data" banner. Keep it visible in the video: UNICEF
-   must never think fictional numbers are pilot results.
 
 If you cannot use the sandboxes, `npm run simulate` gives you a USSD phone in the terminal that
 talks to the same server.
