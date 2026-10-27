@@ -111,6 +111,9 @@ export const NO_REFERRAL: Localized = {
   en: "Okay. If you need help later, come back to Dada. GBV: 1195 free. Emergency: 999.",
 };
 
+/** Words that start the conversation again from the language menu, on any screen. */
+export const RESTART_WORDS = new Set(["anza", "start", "menu", "restart", "rudi", "mwanzo"]);
+
 /** Words that mean "yes" or "no" in free text, for yes/no screens on WhatsApp. */
 export const YES_WORDS = new Set([
   "ndio",

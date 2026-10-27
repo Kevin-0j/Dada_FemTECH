@@ -1,15 +1,17 @@
 import { timingSafeEqual } from "node:crypto";
 import { Hono } from "hono";
 import { basicAuth } from "hono/basic-auth";
+import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
 import type { ReferralService, ReferralView } from "../../application/referral-service.ts";
 import type { ScreeningService } from "../../application/screening-service.ts";
 import type { PublicStats, StatsService } from "../../application/stats-service.ts";
-import type { Hasher } from "../../contracts/ports.ts";
+import type { Clock, Hasher } from "../../contracts/ports.ts";
 import { normalizeKenyanPhone } from "../../domain/phone.ts";
 import { escapeHtml, html, page } from "./html.ts";
+import { RateLimiter } from "./rate-limiter.ts";
 import { isValidTwilioSignature } from "./twilio-signature.ts";
 
 export interface HttpDeps {
@@ -25,7 +27,17 @@ export interface HttpDeps {
   readonly publicBaseUrl: string;
   readonly staffUser: string;
   readonly staffPassword: string;
+  readonly clock: Clock;
+  /** Most WhatsApp messages one number may send per minute. */
+  readonly whatsappPerMinute: number;
+  /** Turn off for tests. */
+  readonly logRequests: boolean;
+  /** Shows a "demo data" banner on every page. */
+  readonly demoMode: boolean;
 }
+
+/** Larger than any real USSD or WhatsApp request; stops oversized bodies early. */
+const MAX_BODY_BYTES = 16 * 1024;
 
 const ussdRequest = z.object({
   sessionId: z.string().min(1).max(200),
@@ -41,7 +53,19 @@ const whatsappRequest = z.object({
 
 export function createApp(deps: HttpDeps): Hono {
   const app = new Hono();
+  const whatsappLimiter = new RateLimiter(deps.clock, deps.whatsappPerMinute, 60_000);
+
+  if (deps.logRequests) {
+    // Logs the path only: query strings can hold the USSD key, and bodies hold what people type.
+    app.use(async (c, next) => {
+      const started = performance.now();
+      await next();
+      const ms = Math.round(performance.now() - started);
+      console.info(`${c.req.method} ${c.req.path} ${c.res.status} ${ms}ms`);
+    });
+  }
   app.use(secureHeaders());
+  app.use(bodyLimit({ maxSize: MAX_BODY_BYTES, onError: (c) => c.text("Payload too large", 413) }));
 
   app.get("/health", (c) => c.json({ status: "ok" }));
 
@@ -81,9 +105,14 @@ export function createApp(deps: HttpDeps): Hono {
     if (!parsed.success) return c.text("Bad request", 400);
 
     const phone = parsed.data.From.replace(/^whatsapp:/, "");
+    const sessionKey = `wa:${deps.hasher.hash(phone)}`;
+    if (!whatsappLimiter.allow(sessionKey)) {
+      // An empty response sends nothing back, so a flood cannot turn into a reply loop.
+      return c.body(EMPTY_TWIML, 200, { "content-type": "text/xml; charset=utf-8" });
+    }
     const reply = await deps.screening.handle({
       channel: "whatsapp",
-      sessionKey: `wa:${deps.hasher.hash(phone)}`,
+      sessionKey,
       fromPhone: phone,
       text: parsed.data.Body,
     });
@@ -95,7 +124,7 @@ export function createApp(deps: HttpDeps): Hono {
     c.header("cache-control", "public, max-age=60");
     return c.json(deps.stats.publicStats());
   });
-  app.get("/stats", (c) => c.html(statsPage(deps.stats.publicStats())));
+  app.get("/stats", (c) => c.html(statsPage(deps.stats.publicStats(), deps.demoMode)));
   app.get("/", (c) => c.redirect("/stats"));
 
   const staff = new Hono();
@@ -103,7 +132,7 @@ export function createApp(deps: HttpDeps): Hono {
   staff.use(csrf());
   staff.get("/", (c) => {
     c.header("cache-control", "no-store");
-    return c.html(staffPage(deps.referrals.listOpen()));
+    return c.html(staffPage(deps.referrals.listOpen(), deps.demoMode));
   });
   staff.post("/referrals/:id/contacted", (c) => {
     const id = c.req.param("id");
@@ -115,6 +144,8 @@ export function createApp(deps: HttpDeps): Hono {
 
   return app;
 }
+
+const EMPTY_TWIML = `<?xml version="1.0" encoding="UTF-8"?><Response></Response>`;
 
 function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
@@ -136,7 +167,7 @@ const FLAG_LABELS: Readonly<Record<string, string>> = {
   danger_phrase_violence: "Typed words about violence",
 };
 
-function staffPage(referrals: readonly ReferralView[]): string {
+function staffPage(referrals: readonly ReferralView[], demo: boolean): string {
   const rows = referrals.map(
     (r) =>
       html`<tr>
@@ -189,17 +220,21 @@ function staffPage(referrals: readonly ReferralView[]): string {
         Follow the clinic's safeguarding protocol.
       </p>
       ${table}`,
+    demo,
   );
 }
 
-function statsPage(stats: PublicStats): string {
+function statsPage(stats: PublicStats, demo: boolean): string {
   const hidden = `Under ${stats.suppressionThreshold}`;
   const card = (label: string, n: number | null, whenHidden = hidden) =>
     html`<div class="card">
       <span class="${n === null ? "n n-hidden" : "n"}">${n ?? whenHidden}</span>
       <span class="l">${label}</span>
     </div>`;
-  const wards = Object.entries(stats.referrals.byWard);
+  // Largest areas first; people who chose "Other" always last.
+  const wards = Object.entries(stats.referrals.byWard).toSorted(([a, x], [b, y]) =>
+    a === "Other" ? 1 : b === "Other" ? -1 : (y ?? 0) - (x ?? 0),
+  );
   return page(
     "Live numbers",
     html`<h1>Live numbers</h1>
@@ -234,5 +269,6 @@ function statsPage(stats: PublicStats): string {
               <div class="grid">${wards.map(([ward, n]) => card(ward, n))}</div>`
       }
       <p><a href="/stats.json">Download these numbers as JSON</a></p>`,
+    demo,
   );
 }

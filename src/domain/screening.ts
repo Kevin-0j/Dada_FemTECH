@@ -15,6 +15,7 @@ import {
   OFFER,
   OTHER_WARD,
   REFERRAL_DONE,
+  RESTART_WORDS,
   WARD_QUESTION,
   YES_WORDS,
   t,
@@ -151,6 +152,7 @@ function isYesNoStep(step: Step): boolean {
 export function parseInput(raw: string, session: Session, context: ScreeningContext): Input | null {
   const text = raw.trim();
   if (text === "0") return { kind: "exit" };
+  if (RESTART_WORDS.has(normalizeText(text))) return { kind: "start" };
   if (session.step.kind === "callbackNumber") return { kind: "text", value: text };
 
   const count = optionCount(session.step, context);

@@ -41,12 +41,17 @@ const schema = z
     EPDS_PROBABLE: z.coerce.number().int().min(0).max(30).default(13),
     SESSION_TTL_MINUTES: z.coerce.number().int().min(1).max(240).default(30),
     RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
+    WHATSAPP_PER_MINUTE: z.coerce.number().int().min(1).max(600).default(20),
     STATS_SUPPRESSION: z.coerce.number().int().min(1).max(100).default(5),
     LLM_BASE_URL: optionalString,
     LLM_MODEL: optionalString,
     LLM_API_KEY: optionalString,
     LLM_TIMEOUT_MS: z.coerce.number().int().min(500).max(10000).default(4000),
     REFERRAL_WEBHOOK_URL: optionalString,
+    DEMO_MODE: z
+      .enum(["true", "false"])
+      .default("false")
+      .transform((value) => value === "true"),
   })
   .refine((env) => env.EPDS_POSSIBLE <= env.EPDS_PROBABLE, {
     message: "EPDS_POSSIBLE must not be greater than EPDS_PROBABLE",
@@ -55,6 +60,10 @@ const schema = z
   .refine((env) => env.NODE_ENV !== "production" || env.TWILIO_AUTH_TOKEN !== null, {
     message: "TWILIO_AUTH_TOKEN is required in production so WhatsApp requests can be verified",
     path: ["TWILIO_AUTH_TOKEN"],
+  })
+  .refine((env) => !(env.NODE_ENV === "production" && env.DEMO_MODE), {
+    message: "DEMO_MODE cannot be used in production",
+    path: ["DEMO_MODE"],
   })
   .refine((env) => (env.LLM_BASE_URL === null) === (env.LLM_MODEL === null), {
     message: "Set both LLM_BASE_URL and LLM_MODEL, or neither",
