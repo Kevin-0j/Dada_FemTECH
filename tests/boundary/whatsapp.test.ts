@@ -58,6 +58,33 @@ describe("POST /whatsapp (Twilio)", () => {
     expect(message(done.text)).toContain("Unaishi area gani?");
   });
 
+  it("starts again from the language menu when someone types anza", async () => {
+    const { app } = testApp({ TWILIO_AUTH_TOKEN: TOKEN });
+    await send(app, "Habari");
+    await send(app, "2");
+    const restarted = await send(app, "Anza");
+    expect(message(restarted.text)).toContain("Karibu Dada.");
+  });
+
+  it("stops replying to a number that sends too many messages", async () => {
+    const { app, clock } = testApp({ TWILIO_AUTH_TOKEN: TOKEN, WHATSAPP_PER_MINUTE: "3" });
+    for (let i = 0; i < 3; i++) expect(message((await send(app, "1")).text)).not.toBe("");
+    const limited = await send(app, "1");
+    expect(limited.status).toBe(200);
+    expect(limited.text).toContain("<Response></Response>");
+    clock.advanceMinutes(1);
+    expect(message((await send(app, "1")).text)).not.toBe("");
+  });
+
+  it("refuses oversized requests", async () => {
+    const { app } = testApp();
+    const response = await app.request("/whatsapp", {
+      method: "POST",
+      ...form({ From: FROM, Body: "x".repeat(20_000) }),
+    });
+    expect(response.status).toBe(413);
+  });
+
   it("rejects requests with a bad signature", async () => {
     const { app } = testApp({ TWILIO_AUTH_TOKEN: TOKEN });
     const response = await send(app, "Habari", false);

@@ -83,6 +83,10 @@ export function compose(config: Config, options: ComposeOptions = {}): Compositi
     publicBaseUrl: config.PUBLIC_BASE_URL,
     staffUser: config.STAFF_USER,
     staffPassword: config.STAFF_PASSWORD,
+    clock,
+    whatsappPerMinute: config.WHATSAPP_PER_MINUTE,
+    logRequests: config.NODE_ENV !== "test",
+    demoMode: config.DEMO_MODE,
   });
   return { app, referrals, cases };
 }
