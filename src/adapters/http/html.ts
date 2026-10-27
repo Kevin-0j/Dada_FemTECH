@@ -35,7 +35,7 @@ function render(value: unknown): string {
  * Page shell. Colours meet WCAG 2.2 AA contrast in light and dark mode, focus is always
  * visible, motion is minimal, and the layout works from 320px wide.
  */
-export function page(title: string, body: SafeHtml): string {
+export function page(title: string, body: SafeHtml, demo = false): string {
   return `<!doctype html>
 <html lang="en">
 <head>
@@ -96,6 +96,10 @@ button {
   font: inherit; cursor: pointer; border: 0; border-radius: .4rem;
   padding: .55rem .9rem; min-height: 2.75rem; background: var(--accent); color: var(--accent-text);
 }
+.demo {
+  margin: 1rem 0 0; padding: .75rem 1rem; border-radius: .5rem;
+  background: var(--surface); border: 2px dashed var(--high); color: var(--text);
+}
 .empty { padding: 1.5rem 1rem; color: var(--muted); }
 footer { color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line); margin-top: 2rem; }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
@@ -104,7 +108,7 @@ footer { color: var(--muted); font-size: .9rem; border-top: 1px solid var(--line
 <body>
 <a class="skip" href="#main">Skip to content</a>
 <header><strong>Dada</strong><span>Perinatal wellbeing screening</span></header>
-<main id="main">${body.html}</main>
+<main id="main">${demo ? '<p class="demo"><strong>Demo data.</strong> These are fictional test records, not real screenings.</p>' : ""}${body.html}</main>
 <footer>Open source under the MIT licence. Emergency: 999 or 112. GBV helpline: 1195 (free).</footer>
 </body>
 </html>`;

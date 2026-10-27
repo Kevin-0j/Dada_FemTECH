@@ -172,6 +172,12 @@ describe("config", () => {
     expect(() => testConfig({ NODE_ENV: "production" })).toThrow(/TWILIO_AUTH_TOKEN/);
   });
 
+  it("never allows demo mode in production", () => {
+    expect(() =>
+      testConfig({ NODE_ENV: "production", TWILIO_AUTH_TOKEN: "t", DEMO_MODE: "true" }),
+    ).toThrow(/DEMO_MODE/);
+  });
+
   it("requires both LLM settings or neither", () => {
     expect(() => testConfig({ LLM_BASE_URL: "http://localhost:8000/v1" })).toThrow(/LLM_MODEL/);
   });
