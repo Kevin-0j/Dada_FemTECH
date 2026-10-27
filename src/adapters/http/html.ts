@@ -41,6 +41,7 @@ export function page(title: string, body: SafeHtml, demo = false): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
 <title>${escapeHtml(title)} · Dada</title>
 <style>
 :root {
