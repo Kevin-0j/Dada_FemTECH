@@ -83,6 +83,9 @@ Karibu Dada.                     Umekuwa na huzuni mpaka hulali?
 
 The staff referral queue:
 
+These screenshots use fictional demo data, created with `npm run seed:demo`. In demo mode every
+page carries a "Demo data" banner so it cannot be mistaken for real results.
+
 ![The referral queue, with fictional test data: a table of open cases, urgent ones first, each showing the reason, EPDS score, area, phone number, channel, time received and a "Mark contacted" button.](docs/images/staff-queue.png)
 
 The public live numbers page:
@@ -128,11 +131,14 @@ Then open:
 - `http://localhost:3000/staff` for the referral queue (use `STAFF_USER` and `STAFF_PASSWORD`)
 - `http://localhost:3000/stats` for the live numbers
 
+To fill the pages with fictional records for a demo, set `DEMO_MODE=true` in `.env`, run
+`npm run seed:demo` and restart. Demo mode is refused when `NODE_ENV=production`.
+
 ## Connect a real USSD code and WhatsApp number
 
 Dada uses [Africa's Talking](https://africastalking.com) for USSD and
 [Twilio](https://www.twilio.com/whatsapp) for WhatsApp. Both have free sandboxes for testing.
-Step-by-step instructions, including HTTPS, backups and Docker, are in the
+Step-by-step instructions, including HTTPS and backups, are in the
 [deployment guide](docs/deployment.md). To record a demo, follow the [demo guide](docs/demo.md).
 
 ## Safety and privacy
@@ -224,7 +230,12 @@ Dada is open source under the [MIT licence](LICENSE).
 The questionnaire is the Edinburgh Postnatal Depression Scale: Cox, J.L., Holden, J.M. and
 Sagovsky, R. (1987). _British Journal of Psychiatry_, 150, 782-786.
 
-Dada is built by the technical team at Uwezo Link Initiative in Nairobi.
+## Who is behind Dada
+
+| Organisation                                       | Role                                                                                                                     |
+| -------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| VIPS Health Services, Nairobi, led by Dr Tom Olewe | Clinical partner. Owns the screening protocol, the counsellors who return calls and safeguarding.                        |
+| Uwezo Link Initiative                              | Builds and maintains the software, and works with community health promoters to introduce Dada in Kangemi and Dagoretti. |
 
 If you are in danger in Kenya, call 999 or 112. The national GBV helpline, 1195, is free
 and open 24 hours.

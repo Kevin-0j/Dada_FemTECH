@@ -4,23 +4,17 @@ This guide takes you from an empty server to a working USSD code and WhatsApp nu
 
 ## 1. Run the server
 
-Any host that runs Node.js 22.18 or newer, or Docker, will do. Dada needs one small machine (512 MB
-of memory is plenty for a pilot) and a disk for the database.
-
-With Docker:
-
-```bash
-docker build -t dada .
-docker run -d --name dada --restart unless-stopped \
-  --env-file .env -p 3000:3000 -v dada-data:/app/data dada
-```
-
-Without Docker:
+Any host that runs Node.js 22.18 or newer will do. Dada needs one small machine (512 MB of
+memory is plenty for a pilot) and a disk for the database.
 
 ```bash
 npm ci --omit=dev
-NODE_ENV=production node --env-file=.env src/main.ts
+cp .env.example .env    # fill in every value, with NODE_ENV=production
+npm start
 ```
+
+Keep it running with your host's process manager (for example systemd or pm2) so it restarts
+after a reboot.
 
 Put the server behind HTTPS (for example Caddy, nginx with Let's Encrypt, or your host's load
 balancer) and set `PUBLIC_BASE_URL` to the HTTPS address.
