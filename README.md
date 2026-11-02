@@ -120,7 +120,7 @@ Choose one:
 
 ```bash
 npm run setup               # an empty system, for development or a real pilot
-npm run setup -- --demo     # demo mode, for trying it out or recording a video
+npm run setup -- --demo     # demo mode, to try it out with fictional records
 ```
 
 Either command creates a `.env` file with fresh random keys and prints the staff login, for
@@ -202,9 +202,17 @@ Both need a public HTTPS address, because they cannot reach `localhost`. For tes
 A free ngrok address changes each time ngrok restarts, unless you use the free static domain from
 the ngrok dashboard. When it changes, update `PUBLIC_BASE_URL` and both callbacks.
 
-The full walkthrough, with where to click and a table of common problems, is in
-the [demo guide](docs/demo.md). For a real pilot, with HTTPS on your own server, backups and the
-Twilio signature check, follow the [deployment guide](docs/deployment.md).
+While you test with the sandboxes you can leave `TWILIO_AUTH_TOKEN` empty, which skips the
+WhatsApp signature check in development. Production refuses to start without it.
+
+| What you see                               | Likely cause                                                                     |
+| ------------------------------------------ | -------------------------------------------------------------------------------- |
+| USSD says the service is unavailable       | The `?key=` in the callback is wrong or missing, or ngrok is not running         |
+| WhatsApp is silent and the log shows `403` | `TWILIO_AUTH_TOKEN` is set but `PUBLIC_BASE_URL` does not match the address used |
+| Nothing appears in the `npm run dev` log   | The callback still points at an old ngrok address                                |
+
+For a real pilot, with HTTPS on your own server, backups and the Twilio signature check, follow
+the [deployment guide](docs/deployment.md).
 
 ## Safety and privacy
 
@@ -252,7 +260,7 @@ src/
   main.ts        Starts the server
 tests/           Unit, application and HTTP tests
 scripts/         USSD phone simulator
-docs/            Architecture, deployment, clinical content, demo guide, DPG alignment
+docs/            Architecture, deployment, clinical content, DPG alignment
 ```
 
 The [architecture guide](docs/architecture.md) explains the design and the reasons behind it.
