@@ -83,7 +83,7 @@ export function staffPage(
       <td data-label="Reasons">
         ${r.flags.map((flag) => FLAG_LABELS[flag] ?? flag).join(", ") || "None"}
       </td>
-      <td class="num" data-label="EPDS score">${r.epdsScore ?? "Not completed"}</td>
+      <td class="num score" data-label="EPDS score">${r.epdsScore ?? "Not completed"}</td>
       <td data-label="Area">${r.ward ?? "Not given"}</td>
       <td class="num" data-label="Phone"><a href="tel:${r.phone}">${r.phone}</a></td>
       <td data-label="Channel">${r.channel === "ussd" ? "USSD" : "WhatsApp"}</td>
@@ -101,20 +101,27 @@ export function staffPage(
     </tr>`;
   });
 
-  const summary = html`<div class="grid">
-    <div class="card ${count("urgent") > 0 ? "card-alert" : ""}">
+  const summary = html`<div class="stat-strip">
+    <div class="stat ${count("urgent") > 0 ? "stat-alert" : ""}">
       <span class="n">${count("urgent")}</span><span class="l">Urgent, call today</span>
+      <span class="sub">First call within ${RESPONSE_TARGET_HOURS.urgent} hours</span>
     </div>
-    <div class="card"><span class="n">${count("high")}</span><span class="l">High</span></div>
-    <div class="card">
-      <span class="n">${referrals.length}</span><span class="l">Waiting in total</span>
+    <div class="stat">
+      <span class="n">${count("high")}</span><span class="l">High</span>
+      <span class="sub">First call within ${RESPONSE_TARGET_HOURS.high} hours</span>
     </div>
-    <div class="card ${overdue.length > 0 ? "card-alert" : ""}">
+    <div class="stat ${overdue.length > 0 ? "stat-alert" : ""}">
       <span class="n">${overdue.length}</span><span class="l">Past response target</span>
+      <span class="sub">Waited longer than the target for their level</span>
     </div>
-    <div class="card">
+    <div class="stat">
+      <span class="n">${referrals.length}</span><span class="l">Waiting in total</span>
+      <span class="sub">Open call requests at every level</span>
+    </div>
+    <div class="stat">
       <span class="n n-small">${referrals.length === 0 ? "None" : formatWait(oldest)}</span>
       <span class="l">Longest wait</span>
+      <span class="sub">Since the oldest open request came in</span>
     </div>
   </div>`;
 
@@ -148,12 +155,14 @@ export function staffPage(
 
   return page(
     "Referral queue",
-    html`<h1>Referral queue</h1>
-      <p class="lead">
-        Women who finished a screening and asked for a call back. Call urgent cases first. Do not
-        write down what the person tells you in this system; follow the clinic's safeguarding
-        protocol.
-      </p>
+    html`<div class="page-head">
+        <h1>Referral queue</h1>
+        <p class="lead">
+          Women who finished a screening and asked for a call back. Call urgent cases first. Do not
+          write down what the person tells you in this system; follow the clinic's safeguarding
+          protocol.
+        </p>
+      </div>
       ${summary}
       <h2>Waiting for a call</h2>
       ${table}
@@ -201,7 +210,7 @@ export function staffPage(
           </table>
         </details>
       </div>
-      <p class="note">
+      <p class="note help">
         Emergency: 999 or 112. National GBV helpline: 1195, free and open 24 hours. Phone numbers
         are deleted ${retentionDays} days after contact.
       </p>`,
@@ -215,7 +224,7 @@ export function statsPage(stats: PublicStats, demo: boolean): string {
   const { screenings, referrals } = stats;
 
   const kpi = (label: string, n: number | string | null, note: string, whenHidden = hidden) =>
-    html`<div class="card">
+    html`<div class="stat">
       <span class="${n === null ? "n n-hidden" : "n"}">${n ?? whenHidden}</span>
       <span class="l">${label}</span>
       <span class="sub">${note}</span>
@@ -293,16 +302,19 @@ export function statsPage(stats: PublicStats, demo: boolean): string {
 
   return page(
     "Live numbers",
-    html`<h1>Live numbers</h1>
-      <p class="lead">
-        Dada screens pregnant women and new mothers in Nairobi for depression and safety risks over
-        USSD and WhatsApp, and connects those who want help to a counsellor at VIPS Health Services
-        or a community health promoter. These anonymised numbers update in real time. Last updated
-        <time datetime="${stats.generatedAt}">${TIME.format(new Date(stats.generatedAt))}</time>.
-      </p>
+    html`<div class="page-head">
+        <h1>Live numbers</h1>
+        <p class="lead">
+          Dada screens pregnant women and new mothers in Nairobi for depression and safety risks
+          over USSD and WhatsApp, and connects those who want help to a counsellor at VIPS Health
+          Services or a community health promoter. These anonymised numbers update in real time.
+          Last updated
+          <time datetime="${stats.generatedAt}">${TIME.format(new Date(stats.generatedAt))}</time>.
+        </p>
+      </div>
 
-      <h2>At a glance</h2>
-      <div class="grid">
+      <h2 class="visually-hidden">At a glance</h2>
+      <div class="stat-strip">
         ${kpi("Screenings completed", screenings.total, "All time, both channels")}
         ${kpi("Asked for a call", referrals.total, "Women who chose to be contacted")}
         ${kpi(
