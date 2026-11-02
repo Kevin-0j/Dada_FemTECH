@@ -1,0 +1,46 @@
+# Render Blueprint: one small web service with a persistent disk for the SQLite database.
+# New > Blueprint in the Render dashboard, pick this repository, then fill in the values marked
+# "sync: false". See docs/deployment.md, "Host it on Render".
+services:
+  - type: web
+    name: dada
+    runtime: node
+    # Disks need a paid instance; the free one sleeps and loses the database on every restart.
+    plan: starter
+    region: frankfurt
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    disk:
+      name: dada-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: NODE_VERSION
+        value: 22.18.0
+      # Keep "development" while DEMO_MODE is on; switch both for the real pilot.
+      - key: NODE_ENV
+        value: development
+      - key: DEMO_MODE
+        value: "true"
+      - key: DATABASE_PATH
+        value: /var/data/dada.db
+      # The service's https://....onrender.com address, with no trailing slash.
+      - key: PUBLIC_BASE_URL
+        sync: false
+      # Render generates these once and keeps them across deploys. Never regenerate
+      # ENCRYPTION_KEY: stored phone numbers would become unreadable.
+      - key: ENCRYPTION_KEY
+        generateValue: true
+      - key: HASH_KEY
+        generateValue: true
+      - key: USSD_CALLBACK_KEY
+        sync: false
+      - key: STAFF_USER
+        value: counsellor
+      - key: STAFF_PASSWORD
+        generateValue: true
+      - key: TWILIO_AUTH_TOKEN
+        sync: false
+      - key: WARDS
+        value: Kangemi,Dagoretti
