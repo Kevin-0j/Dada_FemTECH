@@ -25,6 +25,27 @@ Check it is up:
 curl https://your-domain/health
 ```
 
+### Host it on Render
+
+The repository includes a [Render](https://render.com) Blueprint (`render.yaml`) that runs Dada on
+one small instance with a 1 GB disk for the database, so the live numbers page stays up when your
+laptop is off. The instance with a disk costs about US$7 a month.
+
+1. In the Render dashboard choose **New > Blueprint** and pick this repository.
+2. Fill in the values Render asks for:
+   - `PUBLIC_BASE_URL`: leave a placeholder for now, for example `https://example.com`.
+   - `USSD_CALLBACK_KEY`: a long random string with letters and digits only, for example the output
+     of `node -e "console.log(require('crypto').randomBytes(24).toString('hex'))"`.
+   - `TWILIO_AUTH_TOKEN`: from the Twilio console.
+3. When the first deploy finishes, copy the service address (`https://dada-xxxx.onrender.com`) into
+   `PUBLIC_BASE_URL` and save. Render redeploys.
+4. For a demo, open the service's **Shell** tab and run `npm run seed:demo` once. Every page then
+   shows the "Demo data" banner.
+5. The staff password is under **Environment** (`STAFF_PASSWORD`).
+6. Point the Africa's Talking and Twilio callbacks at the new address (sections 2 and 3).
+
+Before the real pilot, set `DEMO_MODE=false` and `NODE_ENV=production`, and start from an empty disk.
+
 ## 2. Connect USSD with Africa's Talking
 
 1. Create an account at [africastalking.com](https://africastalking.com) and open the sandbox.
