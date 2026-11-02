@@ -75,6 +75,11 @@ export interface Session {
   readonly harmAtHome: HarmAtHome | null;
   readonly triage: Triage | null;
   readonly callback: Callback | null;
+  /**
+   * False when the channel gave us no number to call back, as with a WhatsApp user who hides
+   * their number behind a username. The user is then asked to type a number instead.
+   */
+  readonly hasChannelNumber: boolean;
 }
 
 export type Input =
@@ -108,7 +113,7 @@ export interface ScreeningContext {
 
 const LANGUAGE_BY_CHOICE: Readonly<Record<number, Language>> = { 1: "sheng", 2: "sw", 3: "en" };
 
-export function newSession(): Session {
+export function newSession(options: { readonly hasChannelNumber?: boolean } = {}): Session {
   return {
     step: { kind: "language" },
     language: "sheng",
@@ -116,6 +121,7 @@ export function newSession(): Session {
     harmAtHome: null,
     triage: null,
     callback: null,
+    hasChannelNumber: options.hasChannelNumber ?? true,
   };
 }
 
@@ -215,7 +221,9 @@ function withExit(lines: readonly string[], language: Language): string {
 /** Applies one input to a session. */
 export function advance(session: Session, input: Input, context: ScreeningContext): Transition {
   if (input.kind === "exit") return end(t(EXIT, session.language));
-  if (input.kind === "start") return stay(newSession(), context);
+  if (input.kind === "start") {
+    return stay(newSession({ hasChannelNumber: session.hasChannelNumber }), context);
+  }
   if (input.kind === "danger") return interruptForDanger(session, input.kinds, context);
 
   const { step } = session;
@@ -249,7 +257,7 @@ export function advance(session: Session, input: Input, context: ScreeningContex
     case "offer":
       if (input.kind !== "choice") return invalid(session, context);
       return input.value === 1
-        ? stay({ ...session, step: { kind: "callbackChoice" } }, context)
+        ? stay({ ...session, step: { kind: askForCallback(session) } }, context)
         : end(t(NO_REFERRAL, session.language));
     case "callbackChoice":
       if (input.kind !== "choice") return invalid(session, context);
@@ -306,6 +314,11 @@ function interruptForDanger(
   const flags = [...new Set([...(session.triage?.flags ?? []), ...dangerFlags])];
   const triage: Triage = { tier: "urgent", epdsScore: session.triage?.epdsScore ?? null, flags };
   return stay({ ...session, triage, step: { kind: "offer" } }, context);
+}
+
+/** Offer "this number" only when the channel actually told us one. */
+function askForCallback(session: Session): "callbackChoice" | "callbackNumber" {
+  return session.hasChannelNumber ? "callbackChoice" : "callbackNumber";
 }
 
 function chooseCallback(

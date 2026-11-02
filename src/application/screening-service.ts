@@ -24,8 +24,11 @@ export interface IncomingMessage {
   readonly channel: Channel;
   /** Stable key for this conversation: the USSD session id or a hash of the WhatsApp number. */
   readonly sessionKey: string;
-  /** The number the message came from, in E.164. Used only if the user asks to be called on it. */
-  readonly fromPhone: string;
+  /**
+   * The number the message came from, in E.164, used only if the user asks to be called on it.
+   * Null when the channel hides it (a WhatsApp username); the user is then asked for a number.
+   */
+  readonly fromPhone: string | null;
   /** What the user typed. Empty on the first USSD request. */
   readonly text: string;
 }
@@ -67,12 +70,12 @@ export class ScreeningService {
     const dangerKinds = message.channel === "whatsapp" ? detectDanger(text) : [];
 
     if (existing === undefined && dangerKinds.length === 0) {
-      const session = newSession();
+      const session = newSession({ hasChannelNumber: message.fromPhone !== null });
       sessions.set(message.sessionKey, session);
       return { text: render(session, context), ended: false };
     }
 
-    const session = existing ?? newSession();
+    const session = existing ?? newSession({ hasChannelNumber: message.fromPhone !== null });
     const input: Input =
       dangerKinds.length > 0
         ? { kind: "danger", kinds: dangerKinds }
@@ -122,6 +125,8 @@ export class ScreeningService {
         return;
       case "referral_requested": {
         const phone = event.callback.kind === "channel" ? message.fromPhone : event.callback.phone;
+        // The conversation never offers "call this number" without one, so this cannot happen.
+        if (phone === null) throw new Error("Callback on the channel number, but none is known");
         const referral = {
           id: this.#newId(),
           createdAt: now,

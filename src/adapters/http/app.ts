@@ -50,7 +50,9 @@ const ussdRequest = z.object({
 });
 
 const whatsappRequest = z.object({
-  From: z.string().regex(/^whatsapp:\+\d{6,15}$/),
+  // A phone number, or a business-scoped user id such as "KE.12ab..." when the user hides their
+  // number behind a WhatsApp username.
+  From: z.string().regex(/^whatsapp:(\+\d{6,15}|[A-Z]{2}\.[A-Za-z0-9]{1,128})$/),
   Body: z.string().max(1600).default(""),
 });
 
@@ -107,8 +109,8 @@ export function createApp(deps: HttpDeps): Hono {
     const parsed = whatsappRequest.safeParse(params);
     if (!parsed.success) return c.text("Bad request", 400);
 
-    const phone = parsed.data.From.replace(/^whatsapp:/, "");
-    const sessionKey = `wa:${deps.hasher.hash(phone)}`;
+    const sender = parsed.data.From.replace(/^whatsapp:/, "");
+    const sessionKey = `wa:${deps.hasher.hash(sender)}`;
     if (!whatsappLimiter.allow(sessionKey)) {
       // An empty response sends nothing back, so a flood cannot turn into a reply loop.
       return c.body(EMPTY_TWIML, 200, { "content-type": "text/xml; charset=utf-8" });
@@ -116,7 +118,7 @@ export function createApp(deps: HttpDeps): Hono {
     const reply = await deps.screening.handle({
       channel: "whatsapp",
       sessionKey,
-      fromPhone: phone,
+      fromPhone: sender.startsWith("+") ? sender : null,
       text: parsed.data.Body,
     });
     const twiml = `<?xml version="1.0" encoding="UTF-8"?><Response><Message>${escapeHtml(reply.text)}</Message></Response>`;

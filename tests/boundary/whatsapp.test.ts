@@ -1,10 +1,12 @@
 import { createHmac } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { isValidTwilioSignature } from "../../src/adapters/http/twilio-signature.ts";
-import { BASE_URL, form, testApp } from "../support/fixtures.ts";
+import { BASE_URL, basicAuthHeader, form, testApp } from "../support/fixtures.ts";
 
 const TOKEN = "twilio-test-auth-token";
 const FROM = "whatsapp:+254798765432";
+// What Twilio sends when the user hides their number behind a WhatsApp username.
+const USERNAME_FROM = "whatsapp:KE.980199297939804";
 
 function sign(url: string, params: Record<string, string>): string {
   const payload = Object.keys(params)
@@ -13,8 +15,13 @@ function sign(url: string, params: Record<string, string>): string {
   return createHmac("sha1", TOKEN).update(payload).digest("base64");
 }
 
-async function send(app: ReturnType<typeof testApp>["app"], body: string, signed = true) {
-  const params = { From: FROM, Body: body, To: "whatsapp:+14155238886" };
+async function send(
+  app: ReturnType<typeof testApp>["app"],
+  body: string,
+  signed = true,
+  from = FROM,
+) {
+  const params = { From: from, Body: body, To: "whatsapp:+14155238886" };
   const headers: Record<string, string> = signed
     ? { "x-twilio-signature": sign(`${BASE_URL}/whatsapp`, params) }
     : {};
@@ -58,6 +65,35 @@ describe("POST /whatsapp (Twilio)", () => {
     expect(message(done.text)).toContain("Unaishi area gani?");
   });
 
+  it("asks for a number when the user hides theirs behind a username", async () => {
+    const { app } = testApp({ TWILIO_AUTH_TOKEN: TOKEN });
+    const say = (body: string) => send(app, body, true, USERNAME_FROM);
+    expect(message((await say("Habari")).text)).toContain("Karibu Dada.");
+    await say("1");
+    await say("sitaki kuishi tena");
+
+    // No "call this number?" question: there is no number to call.
+    const asked = await say("1");
+    expect(message(asked.text)).toContain("Weka namba ya simu");
+    expect(message(asked.text)).not.toContain("Tukupigie kwa namba hii?");
+
+    expect(message((await say("0712345678")).text)).toContain("Unaishi area gani?");
+    await say("1");
+
+    const staff = await app.request("/staff", { headers: { authorization: basicAuthHeader() } });
+    const html = await staff.text();
+    expect(html).toContain("712345678");
+    expect(html).not.toContain("KE.980199297939804");
+  });
+
+  it("still offers the WhatsApp number when Twilio sends one", async () => {
+    const { app } = testApp({ TWILIO_AUTH_TOKEN: TOKEN });
+    await send(app, "Habari");
+    await send(app, "1");
+    await send(app, "sitaki kuishi tena");
+    expect(message((await send(app, "1")).text)).toContain("Tukupigie kwa namba hii?");
+  });
+
   it("starts again from the language menu when someone types anza", async () => {
     const { app } = testApp({ TWILIO_AUTH_TOKEN: TOKEN });
     await send(app, "Habari");
@@ -98,6 +134,11 @@ describe("POST /whatsapp (Twilio)", () => {
       ...form({ From: "+254700000000", Body: "hi" }),
     });
     expect(response.status).toBe(400);
+    const badId = await app.request("/whatsapp", {
+      method: "POST",
+      ...form({ From: "whatsapp:ke.<script>", Body: "hi" }),
+    });
+    expect(badId.status).toBe(400);
   });
 
   it("escapes text so replies are always valid XML", () => {
