@@ -84,11 +84,12 @@ For the recording you can leave `TWILIO_AUTH_TOKEN` empty, which skips the signa
 
 ### If something does not answer
 
-| What you see                                    | Likely cause                                                      |
-| ----------------------------------------------- | ----------------------------------------------------------------- |
-| USSD says the service is unavailable            | Wrong or missing `?key=` in the callback, or ngrok is not running |
-| WhatsApp is silent and the log shows `403`      | `TWILIO_AUTH_TOKEN` is set but `PUBLIC_BASE_URL` does not match   |
-| Nothing at all appears in the `npm run dev` log | The callback still points at an old ngrok address                 |
+| What you see                                    | Likely cause                                                                               |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| USSD says the service is unavailable            | Wrong or missing `?key=` in the callback, or ngrok is not running                          |
+| WhatsApp is silent and the log shows `403`      | `TWILIO_AUTH_TOKEN` is set but `PUBLIC_BASE_URL` does not match                            |
+| Nothing at all appears in the `npm run dev` log | The callback still points at an old ngrok address                                          |
+| Twilio replies "Failed to join sandbox"         | The phone uses a WhatsApp username, so its number is hidden; join from a phone without one |
 
 If you cannot use the sandboxes, `npm run simulate` gives you a USSD phone in the terminal that
 talks to the same server.
