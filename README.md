@@ -86,57 +86,125 @@ The staff referral queue:
 These screenshots use fictional demo data, created with `npm run seed:demo`. In demo mode every
 page carries a "Demo data" banner so it cannot be mistaken for real results.
 
-![The referral queue, with fictional test data. Summary cards show urgent and high cases waiting, the total, how many are past their response target and the longest wait. Below is a table of open cases, most urgent first, each with the reason, EPDS score, area, phone number, channel, time received, how long it has waited and a "Mark contacted" button, followed by a suggested call opening and the response targets.](docs/images/staff-queue.png)
+![The referral queue, with fictional test data. A summary panel shows urgent and high cases waiting, how many are past their response target, the total and the longest wait, each with a note on what it means. Below is a table of open cases, most urgent first, each with the reason, EPDS score, area, phone number, channel, time received, how long it has waited and a "Mark contacted" button, followed by a suggested call opening and the response targets.](docs/images/staff-queue.png)
 
 The public live numbers page:
 
-![The live numbers page, with fictional test data. Headline cards show screenings completed, call requests, the share followed up and the median hours to first call. Below are a bar chart of screenings per day for 14 days, bars for results by risk level, channel, follow-up and area, and a key explaining each level. Counts below 5 are hidden to protect privacy.](docs/images/live-numbers.png)
+![The live numbers page, with fictional test data. A summary panel shows screenings completed, call requests, the share followed up and the median hours to first call. Below are a bar chart of screenings per day for 14 days, bars for results by risk level, channel, follow-up and area, and a key explaining each level. Counts below 5 are hidden to protect privacy.](docs/images/live-numbers.png)
 
 Both pages work without JavaScript, adapt to small screens, support dark mode and pass an
 automated WCAG 2.2 AA check with no issues.
 
 ## Try it on your computer
 
-You need [Node.js](https://nodejs.org) 22.18 or newer. Nothing else: the database is built into
-Node.
+You can run the whole of Dada on a laptop in about five minutes. You do not need a USSD code, a
+WhatsApp number or any paid account to try it.
+
+### What you need
+
+- [Node.js](https://nodejs.org) 22.18 or newer. Check with `node -v`. Nothing else: the database
+  is built into Node.
+- [Git](https://git-scm.com), to download the code.
+
+### 1. Download and install
 
 ```bash
 git clone https://github.com/Kevin-0j/Dada_FemTECH.git
 cd Dada_FemTECH
 npm install
-npm run setup
 ```
 
-`npm run setup` creates a `.env` file with fresh random keys and prints the login for the staff
-page. To fill the pages with fictional records for a demo, run `npm run setup -- --demo` instead,
-then `npm run seed:demo`.
+### 2. Create your settings
 
-Start the server:
+Choose one:
+
+```bash
+npm run setup               # an empty system, for development or a real pilot
+npm run setup -- --demo     # demo mode, for trying it out or recording a video
+```
+
+Either command creates a `.env` file with fresh random keys and prints the staff login, for
+example `counsellor / <password>`. Keep that login; it is also in `.env` as `STAFF_USER` and
+`STAFF_PASSWORD`. Every setting is explained in [`.env.example`](.env.example).
+
+Never commit `.env` or share its keys. If you lose `ENCRYPTION_KEY`, the phone numbers already
+stored can no longer be read. Setup refuses to overwrite an existing `.env` for this reason.
+
+In demo mode you can fill the pages with fictional records:
+
+```bash
+npm run seed:demo
+```
+
+### 3. Start the server
 
 ```bash
 npm run dev
 ```
 
-In a second terminal, try the USSD flow with the built-in phone simulator. Type the number of
-your answer and press Enter:
+You should see `Dada is listening on http://localhost:3000`. Check it at
+<http://localhost:3000/health>, which should show `{"status":"ok"}`.
+
+### 4. Try a screening
+
+In a second terminal, start the built-in USSD phone simulator. Type the number of your answer and
+press Enter:
 
 ```bash
 npm run simulate
 ```
 
-Then open:
+### 5. Open the pages
 
-- `http://localhost:3000/staff` for the referral queue (use `STAFF_USER` and `STAFF_PASSWORD`)
-- `http://localhost:3000/stats` for the live numbers
+| Page          | Address                            | Who it is for                                                            |
+| ------------- | ---------------------------------- | ------------------------------------------------------------------------ |
+| Staff queue   | <http://localhost:3000/staff>      | Counsellors. Sign in with `STAFF_USER` and `STAFF_PASSWORD` from `.env`. |
+| Live numbers  | <http://localhost:3000/stats>      | Anyone. Anonymised totals, with counts below 5 hidden.                   |
+| Numbers, JSON | <http://localhost:3000/stats.json> | Partners who want to use the same numbers elsewhere.                     |
 
-Every setting is explained in `.env.example`. Demo mode is refused when `NODE_ENV=production`.
+A screening you finish in the simulator, where you ask for a call, appears in the staff queue
+straight away.
+
+### Start again from empty
+
+Stop the server, delete the database file named in `DATABASE_PATH` (by default
+`data/dada.db`), and start it again. Keep `.env` unless you also want new keys.
+
+### If something does not work
+
+| What you see                                 | What to do                                                          |
+| -------------------------------------------- | ------------------------------------------------------------------- |
+| `npm run dev` stops with an error at startup | Run `node -v`. Dada needs 22.18 or newer.                           |
+| `.env already exists`                        | You already ran setup. Use the keys you have.                       |
+| `EADDRINUSE` on port 3000                    | Something else uses the port. Stop it, or set `PORT` in `.env`.     |
+| The staff page keeps asking for a login      | Copy `STAFF_USER` and `STAFF_PASSWORD` exactly from `.env`.         |
+| Pages are empty                              | Expected on a new system. In demo mode, run `npm run seed:demo`.    |
+| `seed:demo` refuses to run                   | It only works with `DEMO_MODE=true`, so it never touches real data. |
+
+Demo mode is refused when `NODE_ENV=production`.
 
 ## Connect a real USSD code and WhatsApp number
 
 Dada uses [Africa's Talking](https://africastalking.com) for USSD and
 [Twilio](https://www.twilio.com/whatsapp) for WhatsApp. Both have free sandboxes for testing.
-Step-by-step instructions, including HTTPS and backups, are in the
-[deployment guide](docs/deployment.md). To record a demo, follow the [demo guide](docs/demo.md).
+Both need a public HTTPS address, because they cannot reach `localhost`. For testing,
+[ngrok](https://ngrok.com) gives your laptop one. In short:
+
+1. Start Dada with `npm run dev`, then in another terminal run `ngrok http 3000` and copy the
+   `https://` address it shows.
+2. Set `PUBLIC_BASE_URL` in `.env` to that address, with no slash at the end, and restart
+   `npm run dev`.
+3. In the Africa's Talking sandbox, set the USSD callback URL to
+   `https://<your-address>/ussd?key=<USSD_CALLBACK_KEY from .env>`.
+4. In the Twilio WhatsApp sandbox settings, set "When a message comes in" to
+   `https://<your-address>/whatsapp`, method POST.
+
+A free ngrok address changes each time ngrok restarts, unless you use the free static domain from
+the ngrok dashboard. When it changes, update `PUBLIC_BASE_URL` and both callbacks.
+
+The full walkthrough, with where to click and a table of common problems, is in
+the [demo guide](docs/demo.md). For a real pilot, with HTTPS on your own server, backups and the
+Twilio signature check, follow the [deployment guide](docs/deployment.md).
 
 ## Safety and privacy
 
