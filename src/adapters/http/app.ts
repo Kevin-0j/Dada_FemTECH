@@ -5,12 +5,13 @@ import { bodyLimit } from "hono/body-limit";
 import { csrf } from "hono/csrf";
 import { secureHeaders } from "hono/secure-headers";
 import { z } from "zod";
-import type { ReferralService, ReferralView } from "../../application/referral-service.ts";
+import type { ReferralService } from "../../application/referral-service.ts";
 import type { ScreeningService } from "../../application/screening-service.ts";
-import type { PublicStats, StatsService } from "../../application/stats-service.ts";
+import type { StatsService } from "../../application/stats-service.ts";
 import type { Clock, Hasher } from "../../contracts/ports.ts";
 import { normalizeKenyanPhone } from "../../domain/phone.ts";
-import { escapeHtml, html, page } from "./html.ts";
+import { escapeHtml } from "./html.ts";
+import { staffPage, statsPage } from "./pages.ts";
 import { RateLimiter } from "./rate-limiter.ts";
 import { isValidTwilioSignature } from "./twilio-signature.ts";
 
@@ -34,6 +35,8 @@ export interface HttpDeps {
   readonly logRequests: boolean;
   /** Shows a "demo data" banner on every page. */
   readonly demoMode: boolean;
+  /** Shown to staff so they know when phone numbers are deleted. */
+  readonly retentionDays: number;
 }
 
 /** Larger than any real USSD or WhatsApp request; stops oversized bodies early. */
@@ -132,7 +135,13 @@ export function createApp(deps: HttpDeps): Hono {
   staff.use(csrf());
   staff.get("/", (c) => {
     c.header("cache-control", "no-store");
-    return c.html(staffPage(deps.referrals.listOpen(), deps.demoMode));
+    return c.html(
+      staffPage(deps.referrals.listOpen(), {
+        now: deps.clock.now(),
+        demo: deps.demoMode,
+        retentionDays: deps.retentionDays,
+      }),
+    );
   });
   staff.post("/referrals/:id/contacted", (c) => {
     const id = c.req.param("id");
@@ -151,124 +160,4 @@ function safeEqual(a: string, b: string): boolean {
   const left = Buffer.from(a);
   const right = Buffer.from(b);
   return left.length === right.length && timingSafeEqual(left, right);
-}
-
-const TIME = new Intl.DateTimeFormat("en-KE", {
-  dateStyle: "medium",
-  timeStyle: "short",
-  timeZone: "Africa/Nairobi",
-});
-
-const FLAG_LABELS: Readonly<Record<string, string>> = {
-  self_harm_item: "Thoughts of self-harm",
-  not_safe_now: "Not safe right now",
-  harm_at_home: "Harm at home",
-  danger_phrase_self_harm: "Typed words about self-harm",
-  danger_phrase_violence: "Typed words about violence",
-};
-
-function staffPage(referrals: readonly ReferralView[], demo: boolean): string {
-  const rows = referrals.map(
-    (r) =>
-      html`<tr>
-        <td><span class="tier tier-${r.tier}">${r.tier}</span></td>
-        <td>${r.flags.map((flag) => FLAG_LABELS[flag] ?? flag).join(", ") || "None"}</td>
-        <td class="num">${r.epdsScore ?? "Not completed"}</td>
-        <td>${r.ward ?? "Not given"}</td>
-        <td class="num"><a href="tel:${r.phone}">${r.phone}</a></td>
-        <td>${r.channel === "ussd" ? "USSD" : "WhatsApp"}</td>
-        <td><time datetime="${r.createdAt.toISOString()}">${TIME.format(r.createdAt)}</time></td>
-        <td>
-          <form method="post" action="/staff/referrals/${r.id}/contacted">
-            <button type="submit">Mark contacted</button>
-          </form>
-        </td>
-      </tr>`,
-  );
-  const table =
-    referrals.length === 0
-      ? html`<p class="empty">
-          No open referrals. New ones appear here as soon as someone asks for a call.
-        </p>`
-      : html`<div class="table-wrap" tabindex="0" role="region" aria-labelledby="queue-caption">
-          <table>
-            <caption id="queue-caption">
-              Most urgent first, then oldest first
-            </caption>
-            <thead>
-              <tr>
-                <th scope="col">Priority</th>
-                <th scope="col">Reasons</th>
-                <th scope="col">EPDS score</th>
-                <th scope="col">Area</th>
-                <th scope="col">Phone</th>
-                <th scope="col">Channel</th>
-                <th scope="col">Received</th>
-                <th scope="col"><span class="visually-hidden">Action</span></th>
-              </tr>
-            </thead>
-            <tbody>
-              ${rows}
-            </tbody>
-          </table>
-        </div>`;
-  return page(
-    "Referral queue",
-    html`<h1>Referral queue</h1>
-      <p class="lead">
-        Call urgent cases the same day. Do not write down what the person tells you in this system.
-        Follow the clinic's safeguarding protocol.
-      </p>
-      ${table}`,
-    demo,
-  );
-}
-
-function statsPage(stats: PublicStats, demo: boolean): string {
-  const hidden = `Under ${stats.suppressionThreshold}`;
-  const card = (label: string, n: number | null, whenHidden = hidden) =>
-    html`<div class="card">
-      <span class="${n === null ? "n n-hidden" : "n"}">${n ?? whenHidden}</span>
-      <span class="l">${label}</span>
-    </div>`;
-  // Largest areas first; people who chose "Other" always last.
-  const wards = Object.entries(stats.referrals.byWard).toSorted(([a, x], [b, y]) =>
-    a === "Other" ? 1 : b === "Other" ? -1 : (y ?? 0) - (x ?? 0),
-  );
-  return page(
-    "Live numbers",
-    html`<h1>Live numbers</h1>
-      <p class="lead">
-        Anonymised totals, updated in real time. Counts below ${stats.suppressionThreshold} are
-        hidden so that nobody can be identified. Last updated
-        <time datetime="${stats.generatedAt}">${TIME.format(new Date(stats.generatedAt))}</time>.
-      </p>
-      <h2>Screenings</h2>
-      <div class="grid">
-        ${card("Screenings completed", stats.screenings.total)}
-        ${card("By USSD", stats.screenings.byChannel.ussd)}
-        ${card("By WhatsApp", stats.screenings.byChannel.whatsapp)}
-      </div>
-      <h2>Result of screening</h2>
-      <div class="grid">
-        ${card("Urgent, same-day call", stats.screenings.byTier.urgent)}
-        ${card("High, counsellor call", stats.screenings.byTier.high)}
-        ${card("Moderate, health promoter", stats.screenings.byTier.moderate)}
-        ${card("Low, self-care", stats.screenings.byTier.low)}
-      </div>
-      <h2>Referrals</h2>
-      <div class="grid">
-        ${card("Asked for a call", stats.referrals.total)}
-        ${card("Contacted", stats.referrals.contacted)} ${card("Waiting", stats.referrals.open)}
-        ${card("Median hours to contact", stats.referrals.medianHoursToContact, "Not enough data")}
-      </div>
-      ${
-        wards.length === 0
-          ? ""
-          : html`<h2>Referrals by area</h2>
-              <div class="grid">${wards.map(([ward, n]) => card(ward, n))}</div>`
-      }
-      <p><a href="/stats.json">Download these numbers as JSON</a></p>`,
-    demo,
-  );
 }

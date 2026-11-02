@@ -87,6 +87,7 @@ export function compose(config: Config, options: ComposeOptions = {}): Compositi
     whatsappPerMinute: config.WHATSAPP_PER_MINUTE,
     logRequests: config.NODE_ENV !== "test",
     demoMode: config.DEMO_MODE,
+    retentionDays: config.RETENTION_DAYS,
   });
   return { app, referrals, cases };
 }

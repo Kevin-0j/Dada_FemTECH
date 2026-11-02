@@ -86,11 +86,11 @@ The staff referral queue:
 These screenshots use fictional demo data, created with `npm run seed:demo`. In demo mode every
 page carries a "Demo data" banner so it cannot be mistaken for real results.
 
-![The referral queue, with fictional test data: a table of open cases, urgent ones first, each showing the reason, EPDS score, area, phone number, channel, time received and a "Mark contacted" button.](docs/images/staff-queue.png)
+![The referral queue, with fictional test data. Summary cards show urgent and high cases waiting, the total, how many are past their response target and the longest wait. Below is a table of open cases, most urgent first, each with the reason, EPDS score, area, phone number, channel, time received, how long it has waited and a "Mark contacted" button, followed by a suggested call opening and the response targets.](docs/images/staff-queue.png)
 
 The public live numbers page:
 
-![The live numbers page, with fictional test data: cards showing screenings completed, results by risk level, referrals and referrals by area. Counts below 5 are shown as "Under 5" to protect privacy.](docs/images/live-numbers.png)
+![The live numbers page, with fictional test data. Headline cards show screenings completed, call requests, the share followed up and the median hours to first call. Below are a bar chart of screenings per day for 14 days, bars for results by risk level, channel, follow-up and area, and a key explaining each level. Counts below 5 are hidden to protect privacy.](docs/images/live-numbers.png)
 
 Both pages work without JavaScript, adapt to small screens, support dark mode and pass an
 automated WCAG 2.2 AA check with no issues.
