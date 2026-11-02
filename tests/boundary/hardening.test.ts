@@ -56,7 +56,7 @@ describe("staff queue order", () => {
     const page = await (
       await app.request("/staff", { headers: { authorization: basicAuthHeader() } })
     ).text();
-    expect(page.indexOf("tier-urgent")).toBeLessThan(page.indexOf("tier-high"));
+    expect(page.indexOf("badge-urgent")).toBeLessThan(page.indexOf("badge-high"));
   });
 
   it("lists areas by size with Other last on the live numbers page", async () => {

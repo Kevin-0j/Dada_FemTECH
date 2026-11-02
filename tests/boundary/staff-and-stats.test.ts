@@ -130,3 +130,35 @@ describe("public stats", () => {
     expect(BASE_URL).toMatch(/^https:/);
   });
 });
+
+describe("dashboard details", () => {
+  it("counts screenings per day in Nairobi time for the last 14 days", async () => {
+    const { app, clock } = testApp({ STATS_SUPPRESSION: "1" });
+    await playUssd(app, ["3", "1", ...calm, "2", "1", "2"], "d1");
+    clock.advanceMinutes(24 * 60);
+    await playUssd(app, ["3", "1", ...calm, "2", "1", "2"], "d2");
+    await playUssd(app, ["3", "1", ...calm, "2", "1", "2"], "d3");
+    const json = (await (await app.request("/stats.json")).json()) as PublicStats;
+    expect(json.screenings.daily).toHaveLength(14);
+    expect(json.screenings.daily.slice(-2)).toEqual([
+      { date: "2026-11-01", count: 1 },
+      { date: "2026-11-02", count: 2 },
+    ]);
+    const page = await (await app.request("/stats")).text();
+    expect(page).toContain("Screenings over the last 14 days");
+    expect(page).toContain('aria-current="page"');
+  });
+
+  it("marks referrals that are past their response target", async () => {
+    const { app, clock } = testApp();
+    await playUssd(app, ["3", "1", ...distressed, "2", "2", "1", "1", "2"], "late");
+    const view = async () =>
+      (await app.request("/staff", { headers: { authorization: basicAuthHeader() } })).text();
+    expect(await view()).not.toContain("past target");
+    clock.advanceMinutes(3 * 60);
+    const page = await view();
+    expect(page).toContain("past target");
+    expect(page).toContain("Waiting 3 h 0 min");
+    expect(page).toContain("deleted 90 days after contact");
+  });
+});

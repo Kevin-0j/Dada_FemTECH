@@ -25,7 +25,7 @@ describe("POST /ussd (Africa's Talking)", () => {
     const page = await staff.text();
     expect(staff.status).toBe(200);
     expect(page).toContain("+254712345678");
-    expect(page).toContain("tier-high");
+    expect(page).toContain("badge-high");
   });
 
   it("ends with a neutral goodbye on 0", async () => {

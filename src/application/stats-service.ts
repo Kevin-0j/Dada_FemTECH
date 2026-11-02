@@ -13,6 +13,8 @@ export interface PublicStats {
     readonly total: number;
     readonly byTier: Readonly<Record<RiskTier, number | null>>;
     readonly byChannel: Readonly<Record<Channel, number | null>>;
+    /** Screenings per day for the last 14 days in Nairobi time, oldest first. */
+    readonly daily: ReadonlyArray<{ readonly date: string; readonly count: number | null }>;
   };
   readonly referrals: {
     readonly total: number;
@@ -56,6 +58,16 @@ export class StatsService {
       ]),
     ) as Record<Channel, number | null>;
 
+    const perDay = new Map<string, number>();
+    for (const screening of screenings) {
+      const day = nairobiDate(screening.completedAt);
+      perDay.set(day, (perDay.get(day) ?? 0) + 1);
+    }
+    const daily = Array.from({ length: DAYS_SHOWN }, (_, index) => {
+      const date = nairobiDate(new Date(now().getTime() - (DAYS_SHOWN - 1 - index) * DAY_MS));
+      return { date, count: suppress(perDay.get(date) ?? 0) };
+    });
+
     const wardCounts = new Map<string, number>();
     for (const referral of referrals) {
       const ward = referral.ward ?? "Other";
@@ -70,7 +82,7 @@ export class StatsService {
     return {
       generatedAt: now().toISOString(),
       suppressionThreshold,
-      screenings: { total: screenings.length, byTier, byChannel },
+      screenings: { total: screenings.length, byTier, byChannel, daily },
       referrals: {
         total: referrals.length,
         contacted: suppress(contacted.length),
@@ -81,6 +93,15 @@ export class StatsService {
       },
     };
   }
+}
+
+const DAYS_SHOWN = 14;
+const DAY_MS = 24 * 3_600_000;
+const NAIROBI_DAY = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Nairobi" });
+
+/** YYYY-MM-DD in Nairobi time, so a day starts at local midnight. */
+function nairobiDate(date: Date): string {
+  return NAIROBI_DAY.format(date);
 }
 
 function median(values: readonly number[]): number {
